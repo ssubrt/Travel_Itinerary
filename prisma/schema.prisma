@@ -1,0 +1,148 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Location {
+  id          String   @id @default(cuid())
+  name        String
+  region      String
+  description String   @db.Text
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  hotels      Hotel[]
+  activities  Activity[]
+  originTransfers      Transfer[] @relation("OriginLocation")
+  destinationTransfers Transfer[] @relation("DestinationLocation")
+  itineraryDays ItineraryDay[] @relation("DayLocation")
+}
+
+model Hotel {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @db.Text
+  stars       Int      @default(3)
+  pricePerNight Decimal @db.Decimal(10, 2)
+  imageUrl    String?
+  address     String
+  locationId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  location    Location @relation(fields: [locationId], references: [id])
+  stays       Stay[]
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @db.Text
+  duration    Int      // Duration in minutes
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String?
+  locationId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  location    Location @relation(fields: [locationId], references: [id])
+  itineraryActivities ItineraryActivity[]
+}
+
+model Transfer {
+  id                String   @id @default(cuid())
+  type              String   // e.g., "Taxi", "Ferry", "Shuttle"
+  duration          Int      // Duration in minutes
+  price             Decimal  @db.Decimal(10, 2)
+  originLocationId      String
+  destinationLocationId String
+  description       String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  originLocation      Location @relation("OriginLocation", fields: [originLocationId], references: [id])
+  destinationLocation Location @relation("DestinationLocation", fields: [destinationLocationId], references: [id])
+  itineraryTransfers  ItineraryTransfer[]
+}
+
+model Itinerary {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  duration    Int      // Total number of nights
+  totalPrice  Decimal  @db.Decimal(10, 2)
+  isRecommended Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  days        ItineraryDay[]
+}
+
+model ItineraryDay {
+  id          String   @id @default(cuid())
+  dayNumber   Int
+  date        DateTime?
+  description String?   @db.Text
+  itineraryId String
+  locationId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  itinerary   Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  location    Location @relation("DayLocation", fields: [locationId], references: [id])
+  stay        Stay?
+  activities  ItineraryActivity[]
+  transfers   ItineraryTransfer[]
+}
+
+model Stay {
+  id            String   @id @default(cuid())
+  checkIn       DateTime
+  checkOut      DateTime
+  hotelId       String
+  itineraryDayId String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  hotel         Hotel @relation(fields: [hotelId], references: [id])
+  itineraryDay  ItineraryDay @relation(fields: [itineraryDayId], references: [id], onDelete: Cascade)
+}
+
+model ItineraryActivity {
+  id          String   @id @default(cuid())
+  startTime   DateTime
+  activityId  String
+  itineraryDayId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  activity    Activity @relation(fields: [activityId], references: [id])
+  itineraryDay ItineraryDay @relation(fields: [itineraryDayId], references: [id], onDelete: Cascade)
+}
+
+model ItineraryTransfer {
+  id          String   @id @default(cuid())
+  startTime   DateTime
+  transferId  String
+  itineraryDayId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  transfer    Transfer @relation(fields: [transferId], references: [id])
+  itineraryDay ItineraryDay @relation(fields: [itineraryDayId], references: [id], onDelete: Cascade)
+}
